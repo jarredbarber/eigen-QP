@@ -1,7 +1,7 @@
 #include "eigen-qp.hpp"
 
 #include <Eigen/Eigenvalues>
-
+#include <boost/timer/timer.hpp>
 #include <iostream>
 
 using namespace std;
@@ -11,14 +11,98 @@ using namespace Eigen;
  *
  *  Ax <= b
  *  Ex = d
+ *
+ * See: http://etd.dtu.dk/thesis/220437/ep08_19.pdf
  */
 
+void solve_qp(MatrixXd &Q, VectorXd &c, MatrixXd &A, VectorXd &b, VectorXd &x)
+{
+	int N = c.size();
+	int m = b.size();
+
+	// Slack vars
+	VectorXd s = VectorXd::Random(m).array().abs().matrix();
+	VectorXd z = VectorXd::Random(m).array().abs().matrix();
+	x.setRandom();
+
+	// Jacobian
+	MatrixXd J(N + 2*m, N + 2*m );
+
+	J.setZero();
+	J.block(0,0,N,N) = Q;
+	J.block(N,N+m,m,m).setIdentity();
+	J.block(N,0,m,N) = -1.0*A;
+	J.block(0,N,N,m) = -1.0*A.adjoint();
+
+	// Residual thing?
+	bool converged=false;
+
+	VectorXd r(N+2*m);
+
+	r.head(N) = Q*x + c - A.transpose()*z;
+	r.segment(N,m) = s - A*x + b;
+	r.tail(m) = (s.array()*z.array()).matrix();
+
+	double mu = s.dot(z)/m;
+	cout << "mu = " << mu << endl;
+	for (int iter=0; iter < 100; iter++)
+	{
+		// Build Jacobian
+		J.block(N+m,N,m,m).diagonal() = s;
+		J.block(N+m,N+m,m,m).diagonal() = z;
+		auto Jinv = J.ldlt();
+
+		VectorXd delt_aff = Jinv.solve(-1.0*r);
+
+		// Compute predictor step length
+		double alpha = 1.0;
+		for (int jj=0; jj < m; jj++)
+		{
+			double a = -z(jj)/delt_aff(N+jj);
+			alpha = (a < alpha) && (a >= 0) ? a : alpha;
+			a = -s(jj)/delt_aff(N+m+jj);
+			alpha = (a < alpha) && (a >= 0) ? a : alpha;
+		}
+
+		double mu_aff = (s + alpha*delt_aff.tail(m)).dot(z+alpha*delt_aff.segment(N,m))/m;
+		double sigma  = (mu_aff/mu);
+		sigma *= sigma*sigma; // sigma^3
+
+		r.tail(m) +=  (delt_aff.tail(m).array()*delt_aff.segment(N,m).array() - sigma*mu).matrix();
+
+		VectorXd step = Jinv.solve(-1.0*r);
+
+		// Compute alpha again
+		alpha = 1.0;
+		for (int jj=0; jj < m; jj++)
+		{
+			double a = -z(jj)/delt_aff(N+jj);
+			alpha = (a < alpha) && (a > 0) ? a : alpha;
+			a = -s(jj)/delt_aff(N+m+jj);
+			alpha = (a < alpha) && (a > 0) ? a : alpha;
+		}
+
+		// Step
+		x += alpha*delt_aff.head(N);
+		z += alpha*delt_aff.segment(N,m);
+		s += alpha*delt_aff.tail(m);
+
+		// Update residuals
+		r.head(N) = Q*x + c - A.transpose()*z;
+		r.segment(N,m) = s - A*x + b;
+		r.tail(m) = (s.array()*z.array()).matrix();
+
+		mu = s.dot(z)/m;
+		// cout << "iter: " << iter << " step: " << alpha*delt_aff.head(N).norm() << " mu: " << mu << endl;
+	}
+
+}
 int main(int argc, char **argv)
 {
 
 	// Make a random problem
-	int num_vars = 5;
-	int num_ineq = 3;
+	int num_vars = 40;
+	int num_ineq = 30;
 	int num_eq   = 1;
 
 	// Random matrices
@@ -35,11 +119,13 @@ int main(int argc, char **argv)
 
 	// Solve unconstrainted system
 	{
+		boost::timer::auto_cpu_timer t;
 		VectorXd x_unconstrained = Q.ldlt().solve(c);
-		cout << "Unconstrained solution: " << endl << "  " << x_unconstrained << endl;
 	}
 	// Solve equality constrained system: easy
 	{
+		boost::timer::auto_cpu_timer t;
+
 		MatrixXd aug_A(num_vars+num_eq,num_vars+num_eq);
 		VectorXd aug_b(num_vars+num_eq);
 
@@ -52,11 +138,13 @@ int main(int argc, char **argv)
 		aug_b.tail(num_eq)   = d;
 
 		VectorXd x_equality = aug_A.ldlt().solve(aug_b).head(num_vars);
-		cout << "Equality constrained solution: " << endl << x_equality << endl;
 	}
-	// OK, now the big guns: the full problem
+	// Inequality constrained problem
 	{
-		
+		boost::timer::auto_cpu_timer t;
+
+		VectorXd x(num_vars);
+		solve_qp(Q,c,A,b,x);
 	}
 	return 0;	
 }
