@@ -38,24 +38,28 @@ void solve_qp(MatrixXd &Q, VectorXd &c, MatrixXd &A, VectorXd &b, VectorXd &x)
 	bool converged=false;
 
 	VectorXd r(N+2*m);
+	VectorXd delt_aff(N+2*m);
 
 	r.head(N) = Q*x + c - A.transpose()*z;
 	r.segment(N,m) = s - A*x + b;
 	r.tail(m) = (s.array()*z.array()).matrix();
 
 	double mu = s.dot(z)/m;
+	double alpha = 1.0;
+
+
 	cout << "mu = " << mu << endl;
-	for (int iter=0; iter < 100; iter++)
+	for (int iter=0; iter < 46; iter++)
 	{
 		// Build Jacobian
 		J.block(N+m,N,m,m).diagonal() = s;
 		J.block(N+m,N+m,m,m).diagonal() = z;
-		auto Jinv = J.ldlt();
+		auto Jinv = J.colPivHouseholderQr();
 
-		VectorXd delt_aff = Jinv.solve(-1.0*r);
+		delt_aff = Jinv.solve(-1.0*r);
 
 		// Compute predictor step length
-		double alpha = 1.0;
+		alpha = 1.0;
 		for (int jj=0; jj < m; jj++)
 		{
 			double a = -z(jj)/delt_aff(N+jj);
@@ -70,7 +74,7 @@ void solve_qp(MatrixXd &Q, VectorXd &c, MatrixXd &A, VectorXd &b, VectorXd &x)
 
 		r.tail(m) +=  (delt_aff.tail(m).array()*delt_aff.segment(N,m).array() - sigma*mu).matrix();
 
-		VectorXd step = Jinv.solve(-1.0*r);
+		delt_aff = Jinv.solve(-1.0*r);
 
 		// Compute alpha again
 		alpha = 1.0;
@@ -87,13 +91,21 @@ void solve_qp(MatrixXd &Q, VectorXd &c, MatrixXd &A, VectorXd &b, VectorXd &x)
 		z += alpha*delt_aff.segment(N,m);
 		s += alpha*delt_aff.tail(m);
 
+		// Convergence check
+		mu = s.dot(z)/m;
+		double step = alpha*delt_aff.norm();
+
+		if (mu < 1E-6 && step < 1E-6)
+		{
+			cout << "Finished in " << iter << " iterations." << endl;
+			break;
+		}
+		// cout << "iter: " << iter << " step: " << alpha*delt_aff.norm() << " mu: " << mu << endl;
+
 		// Update residuals
 		r.head(N) = Q*x + c - A.transpose()*z;
 		r.segment(N,m) = s - A*x + b;
 		r.tail(m) = (s.array()*z.array()).matrix();
-
-		mu = s.dot(z)/m;
-		// cout << "iter: " << iter << " step: " << alpha*delt_aff.head(N).norm() << " mu: " << mu << endl;
 	}
 
 }
@@ -101,7 +113,7 @@ int main(int argc, char **argv)
 {
 
 	// Make a random problem
-	int num_vars = 40;
+	int num_vars = 1000;
 	int num_ineq = 30;
 	int num_eq   = 1;
 
