@@ -14,8 +14,9 @@ using namespace Eigen;
  *
  * See: http://etd.dtu.dk/thesis/220437/ep08_19.pdf
  */
-#define NV_FIXED 16
-#define NC_FIXED 32
+#define NV_FIXED 8
+#define NC_FIXED 8
+#define N_TEST   1024
 
 int main(int argc, char **argv)
 {
@@ -35,20 +36,41 @@ int main(int argc, char **argv)
 
     VectorXd x_unc;
 	// Solve unconstrainted system
+    cout << "Unconstrained..." << endl;
 	{
 		boost::timer::auto_cpu_timer t;
-		x_unc = -Q.ldlt().solve(c);
+        for (int ii=0; ii < N_TEST; ii++)
+		  x_unc = -Q.ldlt().solve(c);
 	}
     VectorXd x(num_vars);
     // Generate inequality constraints
     b.array() = (A*x_unc).array() - 0.5;
 	// Inequality constrained problem
+    cout << "quadprog, dynamic code" << endl;
     {
         boost::timer::auto_cpu_timer t;
-
-        quadprog(Q,c,A,b,x);
+        for (int ii=0; ii < N_TEST; ii++)
+            quadprog(Q,c,A,b,x);
     }
-    cout << "quadprog error: " << (x - x_unc).norm() << endl;
+    cout << "    error: " << (x - x_unc).norm() << endl;
+    {
+        qp_solver<double,-1,-1> *solver;
+        cout <<"qp_solver, dynamic, obj creation" << endl;
+        {
+            boost::timer::auto_cpu_timer t;
+            for (int ii=0; ii < N_TEST; ii++)
+            {
+                solver = new qp_solver<double,-1,-1>(NV_FIXED,NC_FIXED);
+                solver->solve(Q,c,A,b,x);
+            }
+        }
+        cout << "qp_solver, dynamic, object reuse" << endl;
+        {
+            boost::timer::auto_cpu_timer t;
+            for (int ii=0; ii < N_TEST; ii++)
+                solver->solve(Q,c,A,b,x);
+        }
+    }
 
     // Fixed size
     Matrix<double, NV_FIXED,NV_FIXED> Q_fixed(Q);
@@ -65,26 +87,33 @@ int main(int argc, char **argv)
     b_fixed.array() = (A_fixed*x_unc).array() - 0.12;
 
     Matrix<double, NV_FIXED, 1> x_fixed;
+    cout << "quadprog, fixed code" << endl;
     {
         boost::timer::auto_cpu_timer t;
-        for (int ii=0; ii < 100; ii++)
+        for (int ii=0; ii < N_TEST; ii++)
             quadprog(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
     }
-    cout << "quadprog error: " << (x_fixed - x_unc).norm() << endl;
+    cout << "    error: " << (x_fixed - x_unc).norm() << endl;
+    {
+        qp_solver<double,NV_FIXED,NC_FIXED> *solver;
+        cout << "qp_solver, fixed" << endl;
+        {
+            boost::timer::auto_cpu_timer t;
+            for (int ii=0; ii < N_TEST; ii++)
+            {
+                solver = new qp_solver<double,NV_FIXED,NC_FIXED>();
+                solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
+            }
+        }
+        cout << "    error: " << (x_fixed - x_unc).norm() << endl;
+        cout << "qp_solver, fixed, object reuse" << endl;
+        {
+            boost::timer::auto_cpu_timer t;
+            for (int ii=0; ii < N_TEST; ii++)
+                solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);       
+        }
+        cout << "    error: " << (x_fixed - x_unc).norm() << endl;
+    }
 
-    cout << "Testing precaching" << endl;
-    qp_solver<double,NV_FIXED,NC_FIXED> *solver;
-    {
-        boost::timer::auto_cpu_timer t;
-        solver = new qp_solver<double,NV_FIXED,NC_FIXED>();
-        solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
-    }
-    cout << "qp_solver error: " << (x_fixed - x_unc).norm() << endl;
-    {
-        boost::timer::auto_cpu_timer t;
-        solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);       
-    }
-    cout << "qp_solver error: " << (x_fixed - x_unc).norm() << endl;
-    delete solver;
 	return 0;	
 }

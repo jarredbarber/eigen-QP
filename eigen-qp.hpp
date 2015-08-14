@@ -18,7 +18,7 @@ private:
 	const int n;
 	const int m;
 
-	const Scalar eps = 0.5E-9;
+	const Scalar eps = 1E-8;
 	const Scalar eta = 0.95;
 
 	// Work buffers
@@ -62,7 +62,7 @@ public:
 	    for (iter=0; iter < 250; iter++)
 	    {
 	    	// Precompute decompositions for this iteration
-	    	LDLT<PMat> Gbar = (Q + A.transpose()*((z.array()/s.array()).matrix().asDiagonal())*A).ldlt();
+	    	LLT<PMat> Gbar = (Q + A.transpose()*((z.array()/s.array()).matrix().asDiagonal())*A).llt();
 
 			for (int ii=0; ii < 2; ii++)
 			{	
@@ -131,7 +131,7 @@ void quadprog(Matrix<Scalar,NVars,NVars> &Q, Matrix<Scalar,NVars,1> &c,
 
     const int n = c.size();
     const int m = b.size();
-    const Scalar eps = 0.5E-9;
+    const Scalar eps = 1E-8;
     const Scalar eta = 0.95;
 
     // Slack variables
