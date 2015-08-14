@@ -21,31 +21,31 @@ using namespace Eigen;
 int main(int argc, char **argv)
 {
 
-	// Make a random problem
-	int num_vars = NV_FIXED;
-	int num_ineq = NC_FIXED;
+    // Make a random problem
+    int num_vars = NV_FIXED;
+    int num_ineq = NC_FIXED;
 
-	// Random matrices
-	MatrixXd Q = MatrixXd::Random(num_vars,num_vars);
-	Q *= Q.adjoint()/sqrt(num_vars); // Make it pos def
+    // Random matrices
+    MatrixXd Q = MatrixXd::Random(num_vars,num_vars);
+    Q *= Q.adjoint()/sqrt(num_vars); // Make it pos def
 
-	VectorXd c = VectorXd::Random(num_vars);
+    VectorXd c = VectorXd::Random(num_vars);
 
-	MatrixXd A = MatrixXd::Random(num_ineq,num_vars);
-	VectorXd b = VectorXd::Random(num_ineq);
+    MatrixXd A = MatrixXd::Random(num_ineq,num_vars);
+    VectorXd b = VectorXd::Random(num_ineq);
 
     VectorXd x_unc;
-	// Solve unconstrainted system
+    // Solve unconstrainted system
     cout << "Unconstrained..." << endl;
-	{
-		boost::timer::auto_cpu_timer t;
+    {
+        boost::timer::auto_cpu_timer t;
         for (int ii=0; ii < N_TEST; ii++)
-		  x_unc = -Q.ldlt().solve(c);
-	}
+          x_unc = -Q.ldlt().solve(c);
+    }
     VectorXd x(num_vars);
     // Generate inequality constraints
     b.array() = (A*x_unc).array() - 0.5;
-	// Inequality constrained problem
+    // Inequality constrained problem
     cout << "quadprog, dynamic code" << endl;
     {
         boost::timer::auto_cpu_timer t;
@@ -115,5 +115,5 @@ int main(int argc, char **argv)
         cout << "    error: " << (x_fixed - x_unc).norm() << endl;
     }
 
-	return 0;	
+    return 0;   
 }
