@@ -64,12 +64,14 @@ int main(int argc, char **argv)
                 solver->solve(Q,c,A,b,x);
             }
         }
+        cout << "    error: " << (x - x_unc).norm() << endl;
         cout << "qp_solver, dynamic, object reuse" << endl;
         {
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
                 solver->solve(Q,c,A,b,x);
         }
+        cout << "    error: " << (x - x_unc).norm() << endl;
     }
 
     // Fixed size
