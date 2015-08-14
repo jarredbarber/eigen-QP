@@ -1,2 +1,0 @@
-#include "eigen-qp.hpp"
-

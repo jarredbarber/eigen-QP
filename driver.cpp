@@ -14,108 +14,15 @@ using namespace Eigen;
  *
  * See: http://etd.dtu.dk/thesis/220437/ep08_19.pdf
  */
+#define NV_FIXED 16
+#define NC_FIXED 32
 
-void solve_qp(MatrixXd &Q, VectorXd &c, MatrixXd &A, VectorXd &b, VectorXd &x)
-{
-	int N = c.size();
-	int m = b.size();
-
-	// Slack vars
-	VectorXd s = VectorXd::Random(m).array().abs().matrix();
-	VectorXd z = VectorXd::Random(m).array().abs().matrix();
-	x.setRandom();
-
-	// Jacobian
-	MatrixXd J(N + 2*m, N + 2*m );
-
-	J.setZero();
-	J.block(0,0,N,N) = Q;
-	J.block(N,N+m,m,m).setIdentity();
-	J.block(N,0,m,N) = -1.0*A;
-	J.block(0,N,N,m) = -1.0*A.adjoint();
-
-	// Residual thing?
-	bool converged=false;
-
-	VectorXd r(N+2*m);
-	VectorXd delt_aff(N+2*m);
-
-	r.head(N) = Q*x + c - A.transpose()*z;
-	r.segment(N,m) = s - A*x + b;
-	r.tail(m) = (s.array()*z.array()).matrix();
-
-	double mu = s.dot(z)/m;
-	double alpha = 1.0;
-
-
-	cout << "mu = " << mu << endl;
-	for (int iter=0; iter < 46; iter++)
-	{
-		// Build Jacobian
-		J.block(N+m,N,m,m).diagonal() = s;
-		J.block(N+m,N+m,m,m).diagonal() = z;
-		auto Jinv = J.colPivHouseholderQr();
-
-		delt_aff = Jinv.solve(-1.0*r);
-
-		// Compute predictor step length
-		alpha = 1.0;
-		for (int jj=0; jj < m; jj++)
-		{
-			double a = -z(jj)/delt_aff(N+jj);
-			alpha = (a < alpha) && (a >= 0) ? a : alpha;
-			a = -s(jj)/delt_aff(N+m+jj);
-			alpha = (a < alpha) && (a >= 0) ? a : alpha;
-		}
-
-		double mu_aff = (s + alpha*delt_aff.tail(m)).dot(z+alpha*delt_aff.segment(N,m))/m;
-		double sigma  = (mu_aff/mu);
-		sigma *= sigma*sigma; // sigma^3
-
-		r.tail(m) +=  (delt_aff.tail(m).array()*delt_aff.segment(N,m).array() - sigma*mu).matrix();
-
-		delt_aff = Jinv.solve(-1.0*r);
-
-		// Compute alpha again
-		alpha = 1.0;
-		for (int jj=0; jj < m; jj++)
-		{
-			double a = -z(jj)/delt_aff(N+jj);
-			alpha = (a < alpha) && (a > 0) ? a : alpha;
-			a = -s(jj)/delt_aff(N+m+jj);
-			alpha = (a < alpha) && (a > 0) ? a : alpha;
-		}
-
-		// Step
-		x += alpha*delt_aff.head(N);
-		z += alpha*delt_aff.segment(N,m);
-		s += alpha*delt_aff.tail(m);
-
-		// Convergence check
-		mu = s.dot(z)/m;
-		double step = alpha*delt_aff.norm();
-
-		if (mu < 1E-6 && step < 1E-6)
-		{
-			cout << "Finished in " << iter << " iterations." << endl;
-			break;
-		}
-		// cout << "iter: " << iter << " step: " << alpha*delt_aff.norm() << " mu: " << mu << endl;
-
-		// Update residuals
-		r.head(N) = Q*x + c - A.transpose()*z;
-		r.segment(N,m) = s - A*x + b;
-		r.tail(m) = (s.array()*z.array()).matrix();
-	}
-
-}
 int main(int argc, char **argv)
 {
 
 	// Make a random problem
-	int num_vars = 1000;
-	int num_ineq = 30;
-	int num_eq   = 1;
+	int num_vars = NV_FIXED;
+	int num_ineq = NC_FIXED;
 
 	// Random matrices
 	MatrixXd Q = MatrixXd::Random(num_vars,num_vars);
@@ -126,37 +33,58 @@ int main(int argc, char **argv)
 	MatrixXd A = MatrixXd::Random(num_ineq,num_vars);
 	VectorXd b = VectorXd::Random(num_ineq);
 
-	MatrixXd E = MatrixXd::Random(num_eq,num_vars);
-	VectorXd d = VectorXd::Random(num_eq);
-
+    VectorXd x_unc;
 	// Solve unconstrainted system
 	{
 		boost::timer::auto_cpu_timer t;
-		VectorXd x_unconstrained = Q.ldlt().solve(c);
+		x_unc = -Q.ldlt().solve(c);
 	}
-	// Solve equality constrained system: easy
-	{
-		boost::timer::auto_cpu_timer t;
-
-		MatrixXd aug_A(num_vars+num_eq,num_vars+num_eq);
-		VectorXd aug_b(num_vars+num_eq);
-
-		aug_A.block(0,0,num_vars,num_vars) = Q;
-		aug_A.block(num_vars,0,num_eq,num_vars) = E;
-		aug_A.block(0,num_vars,num_vars,num_eq) = E.transpose();
-		aug_A.block(num_vars,num_vars,num_eq,num_eq).setZero();
-
-		aug_b.head(num_vars) = c;
-		aug_b.tail(num_eq)   = d;
-
-		VectorXd x_equality = aug_A.ldlt().solve(aug_b).head(num_vars);
-	}
+    VectorXd x(num_vars);
+    // Generate inequality constraints
+    b.array() = (A*x_unc).array() - 0.5;
 	// Inequality constrained problem
-	{
-		boost::timer::auto_cpu_timer t;
+    {
+        boost::timer::auto_cpu_timer t;
 
-		VectorXd x(num_vars);
-		solve_qp(Q,c,A,b,x);
-	}
+        quadprog(Q,c,A,b,x);
+    }
+    cout << "quadprog error: " << (x - x_unc).norm() << endl;
+
+    // Fixed size
+    Matrix<double, NV_FIXED,NV_FIXED> Q_fixed(Q);
+    Matrix<double, NV_FIXED, 1> c_fixed(c);
+    Matrix<double, NC_FIXED,NV_FIXED> A_fixed(A);
+    Matrix<double, NC_FIXED,1> b_fixed(b);
+
+    // Q_fixed.setRandom();
+    // c_fixed.setRandom();
+    // A_fixed.setRandom();
+
+    x_unc = -Q_fixed.ldlt().solve(c_fixed);
+
+    b_fixed.array() = (A_fixed*x_unc).array() - 0.12;
+
+    Matrix<double, NV_FIXED, 1> x_fixed;
+    {
+        boost::timer::auto_cpu_timer t;
+        for (int ii=0; ii < 100; ii++)
+            quadprog(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
+    }
+    cout << "quadprog error: " << (x_fixed - x_unc).norm() << endl;
+
+    cout << "Testing precaching" << endl;
+    qp_solver<double,NV_FIXED,NC_FIXED> *solver;
+    {
+        boost::timer::auto_cpu_timer t;
+        solver = new qp_solver<double,NV_FIXED,NC_FIXED>();
+        solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
+    }
+    cout << "qp_solver error: " << (x_fixed - x_unc).norm() << endl;
+    {
+        boost::timer::auto_cpu_timer t;
+        solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);       
+    }
+    cout << "qp_solver error: " << (x_fixed - x_unc).norm() << endl;
+    delete solver;
 	return 0;	
 }
