@@ -18,7 +18,7 @@ function quadprog{T}(Q::Matrix{T},c::Vector{T},A::Matrix{T},b::Vector{T};tol=1E-
 	dz = Array(T,m)
 
 	rd = c - A'*z
-	rp = s - A*x + b
+	rp = s + b
 	rs = (s.*z)
 
 	mu = n/m
@@ -26,7 +26,7 @@ function quadprog{T}(Q::Matrix{T},c::Vector{T},A::Matrix{T},b::Vector{T};tol=1E-
 	iter = 0
 	for iter = 1:250
 		Gbar = Q + A'*diagm(z./s)*A
-		Gdecomp = cholfact(Gbar)
+		Gdecomp = cholfact(Gbar) # Pre-factor matrix
 
 		for i=1:2
 			# Compute step

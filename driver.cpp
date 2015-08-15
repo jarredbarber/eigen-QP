@@ -15,16 +15,15 @@ using namespace Eigen;
  * See: http://etd.dtu.dk/thesis/220437/ep08_19.pdf
  */
 #define NV_FIXED 8
-#define NC_FIXED 8
-#define N_TEST   1024
+#define NC_FIXED 16
+#define N_TEST   1024*32 
 
-int main(int argc, char **argv)
+void test()
 {
 
     // Make a random problem
     int num_vars = NV_FIXED;
     int num_ineq = NC_FIXED;
-
     // Random matrices
     MatrixXd Q = MatrixXd::Random(num_vars,num_vars);
     Q *= Q.adjoint()/sqrt(num_vars); // Make it pos def
@@ -60,7 +59,7 @@ int main(int argc, char **argv)
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
             {
-                solver = new qp_solver<double,-1,-1>(NV_FIXED,NC_FIXED);
+                solver = new qp_solver<double,-1,-1>(num_vars,num_ineq);
                 solver->solve(Q,c,A,b,x);
             }
         }
@@ -103,7 +102,7 @@ int main(int argc, char **argv)
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
             {
-                solver = new qp_solver<double,NV_FIXED,NC_FIXED>();
+                solver = new qp_solver<double,NV_FIXED,NC_FIXED>(num_vars,num_ineq);
                 solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
             }
         }
@@ -117,5 +116,10 @@ int main(int argc, char **argv)
         cout << "    error: " << (x_fixed - x_unc).norm() << endl;
     }
 
-    return 0;   
+}
+
+int main(int argc, char ** argv)
+{
+    test();
+    return 0;
 }
