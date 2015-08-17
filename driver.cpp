@@ -6,6 +6,7 @@
 
 using namespace std;
 using namespace Eigen;
+using namespace EigenQP;
 /*
  *  min 0.5 x.Q.x + c.x
  *
