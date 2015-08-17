@@ -16,7 +16,8 @@ using namespace Eigen;
  */
 #define NV_FIXED 8
 #define NC_FIXED 16
-#define N_TEST   1024*32 
+#define NE_FIXED 3
+#define N_TEST   1024*4
 
 void test()
 {
@@ -24,6 +25,8 @@ void test()
     // Make a random problem
     int num_vars = NV_FIXED;
     int num_ineq = NC_FIXED;
+    int num_eq   = NE_FIXED;
+
     // Random matrices
     MatrixXd Q = MatrixXd::Random(num_vars,num_vars);
     Q *= Q.adjoint()/sqrt(num_vars); // Make it pos def
@@ -32,6 +35,9 @@ void test()
 
     MatrixXd A = MatrixXd::Random(num_ineq,num_vars);
     VectorXd b = VectorXd::Random(num_ineq);
+
+    MatrixXd E = MatrixXd::Random(num_eq,num_vars);
+    VectorXd f = VectorXd::Random(num_eq);
 
     VectorXd x_unc;
     // Solve unconstrainted system
@@ -53,18 +59,18 @@ void test()
     }
     cout << "    error: " << (x - x_unc).norm() << endl;
     {
-        qp_solver<double,-1,-1> *solver;
-        cout <<"qp_solver, dynamic, obj creation" << endl;
+        QPIneqSolver<double,-1,-1> *solver;
+        cout <<"QPIneqSolver, dynamic, obj creation" << endl;
         {
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
             {
-                solver = new qp_solver<double,-1,-1>(num_vars,num_ineq);
+                solver = new QPIneqSolver<double,-1,-1>(num_vars,num_ineq);
                 solver->solve(Q,c,A,b,x);
             }
         }
         cout << "    error: " << (x - x_unc).norm() << endl;
-        cout << "qp_solver, dynamic, object reuse" << endl;
+        cout << "QPIneqSolver, dynamic, object reuse" << endl;
         {
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
@@ -96,24 +102,34 @@ void test()
     }
     cout << "    error: " << (x_fixed - x_unc).norm() << endl;
     {
-        qp_solver<double,NV_FIXED,NC_FIXED> *solver;
-        cout << "qp_solver, fixed" << endl;
+        QPIneqSolver<double,NV_FIXED,NC_FIXED> *solver;
+        cout << "QPIneqSolver, fixed" << endl;
         {
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
             {
-                solver = new qp_solver<double,NV_FIXED,NC_FIXED>(num_vars,num_ineq);
+                solver = new QPIneqSolver<double,NV_FIXED,NC_FIXED>(num_vars,num_ineq);
                 solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);
             }
         }
         cout << "    error: " << (x_fixed - x_unc).norm() << endl;
-        cout << "qp_solver, fixed, object reuse" << endl;
+        cout << "QPIneqSolver, fixed, object reuse" << endl;
         {
             boost::timer::auto_cpu_timer t;
             for (int ii=0; ii < N_TEST; ii++)
                 solver->solve(Q_fixed,c_fixed,A_fixed,b_fixed,x_fixed);       
         }
         cout << "    error: " << (x_fixed - x_unc).norm() << endl;
+    }
+
+    cout << "quadprog, equality constraints, dynamic" << endl;
+    {
+        QPEqSolver<double> solver(num_vars,num_eq);
+        {
+            boost::timer::auto_cpu_timer t;
+            for (int ii=0; ii < N_TEST; ii++)
+                solver.solve(Q,c,E,f,x);
+        }
     }
 
 }

@@ -1,3 +1,6 @@
+/*
+ * Fast quadradic programming template library based on Eigen.
+ */
 #ifndef _EIGEN_QP_H_
 #define _EIGEN_QP_H_
 
@@ -6,9 +9,48 @@
 #include <Eigen/Core>
 
 using namespace Eigen;
+using namespace std;
+
+/**
+ * Solves quadradic programs with equality constraints
+ *  using direct matrix factorization of the KKT system.
+ */
+template<typename Scalar, int NVars=-1, int NEq=-1>
+class QPEqSolver
+{
+private:
+    const int n;
+    const int m;
+
+public:
+    QPEqSolver(int n_vars=NVars, int n_const=NEq) : n(n_vars),m(n_const)
+        {
+
+        }
+    void solve(Matrix<Scalar,NVars,NVars> &Q, Matrix<Scalar,NVars,1> &c, 
+              Matrix<Scalar,NEq,NVars> &A, Matrix<Scalar,NEq,1> &b,
+              Matrix<Scalar,NVars,1> &x)
+    {
+        // TODO: Can this be done without explicitly
+        //  constructing 'Z' ?
+        // 2x2 block matrix inversion doesn't work because
+        //  of the lower right block being singular.
+        Matrix<Scalar,-1,-1> Z(m+n,m+n);
+        Z.block(0,0,n,n) = Q;
+        Z.block(0,n,n,m) = A.adjoint();
+        Z.block(n,0,m,n) = A;
+        Z.block(n,n,m,m).setZero();
+
+        Matrix<Scalar,-1,1> C(m+n);
+        C.head(n) = -c;
+        C.tail(m) = b;
+
+        x = Z.ldlt().solve(C).head(n);
+    }
+};
 
 template<typename Scalar, int NVars, int NIneq>
-class qp_solver
+class QPIneqSolver
 {
     typedef Matrix<Scalar,NVars,1> PVec;
     typedef Matrix<Scalar,NIneq,1> DVec; // Dual (i.e., Lagrange multiplier) vector
@@ -34,13 +76,13 @@ private:
     DVec dz;
 
 public:
-    qp_solver(int n_vars=NVars, int n_const=NIneq) : n(n_vars),m(n_const), s(m), z(m), rd(n), rp(m), rs(m), dx(n), ds(m), dz(m)
+    QPIneqSolver(int n_vars=NVars, int n_const=NIneq) : n(n_vars),m(n_const), s(m), z(m), rd(n), rp(m), rs(m), dx(n), ds(m), dz(m)
         {
         }
 
-    ~qp_solver() {}
+    ~QPIneqSolver() {}
 
-    int solve(Matrix<Scalar,NVars,NVars> &Q, Matrix<Scalar,NVars,1> &c, 
+    void solve(Matrix<Scalar,NVars,NVars> &Q, Matrix<Scalar,NVars,1> &c, 
               Matrix<Scalar,NIneq,NVars> &A, Matrix<Scalar,NIneq,1> &b,
               Matrix<Scalar,NVars,1> &x)
     {
@@ -117,7 +159,6 @@ public:
                 break;
             }
         }
-        return iter;
     }
 };
 
@@ -127,7 +168,7 @@ void quadprog(Matrix<Scalar,NVars,NVars> &Q, Matrix<Scalar,NVars,1> &c,
               Matrix<Scalar,NIneq,NVars> &A, Matrix<Scalar,NIneq,1> &b,
               Matrix<Scalar,NVars,1> &x)
 {
-    qp_solver<Scalar,NVars,NIneq> qp(c.size(),b.size());
+    QPIneqSolver<Scalar,NVars,NIneq> qp(c.size(),b.size());
     qp.solve(Q,c,A,b,x);
 }
 #endif
