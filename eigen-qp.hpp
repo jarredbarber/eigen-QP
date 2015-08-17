@@ -74,9 +74,6 @@ private:
     const int n;
     const int m;
 
-    // static constexpr Scalar eps = _private::defaultTolerance<Scalar>::tol;
-    const Scalar eta = 0.95;
-
     // Work buffers
     DVec s;
     DVec z;
@@ -100,6 +97,9 @@ public:
               Eigen::Matrix<Scalar,NIneq,NVars> &A, Eigen::Matrix<Scalar,NIneq,1> &b,
               Eigen::Matrix<Scalar,NVars,1> &x)
     {
+        const Scalar eta = 0.95;
+        const Scalar eps = defTol<Scalar>();
+
         // Initialization
         s.setOnes();
         z.setOnes();
@@ -110,7 +110,7 @@ public:
         rp = s + b;
         rs = (s.array()*z.array());
 
-        Scalar ms = 1/(Scalar)m;
+        const Scalar ms = 1/(Scalar)m;
         Scalar mu = (Scalar)n*ms; // Initial mu based on knowing that s,z are ones.
         Scalar alpha;
 
@@ -166,9 +166,9 @@ public:
             mu = s.dot(z)*ms;
 
             // Convergence test
-            if ( (mu < defTol<Scalar>()) && 
-                 (rd.norm() < defTol<Scalar>()) && 
-                 (rs.norm() < defTol<Scalar>()) )
+            if ( (mu < eps) && 
+                 (rd.norm() < eps) && 
+                 (rs.norm() < eps) )
             {
                 break;
             }
@@ -197,9 +197,6 @@ private:
     const int n;
     const int mi;
     const int me;
-
-    const Scalar eps = 1E-9;
-    const Scalar eta = 0.95;
 
     // Work buffers
     DVec s;
