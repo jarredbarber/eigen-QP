@@ -133,6 +133,16 @@ void test()
         }
     }
 
+    cout << "quadprog, ineq/eq constraints, dynamic" << endl;
+    {
+        //b = A*x - 0.12;
+        QPGenSolver<double> solver(num_vars,num_ineq,num_eq);
+        {
+            boost::timer::auto_cpu_timer t;
+            for (int ii=0; ii < N_TEST; ii++)
+                solver.solve(Q,c,A,b,E,f,x);
+        }
+    }
 }
 
 int main(int argc, char ** argv)

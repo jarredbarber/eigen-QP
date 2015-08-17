@@ -10,9 +10,23 @@
  * Solves quadradic programs with equality constraints
  *  using direct matrix factorization of the KKT system.
  */
+
+
 namespace EigenQP
 {
 
+// Default tolerance levels specialized on types
+template<typename t> t defTol();
+template<>
+    inline double defTol<double>() { return 1E-9; }
+template<>
+    inline float defTol<float>()   { return 1E-5f; }
+
+/*
+ * Solver for equality constrained problems.
+ *  The KKT conditions are linear here, so we just
+ *  invert with an LDLT decomposition.
+ */
 template<typename Scalar, int NVars=-1, int NEq=-1>
 class QPEqSolver
 {
@@ -20,26 +34,25 @@ private:
     const int n;
     const int m;
 
-public:
-    QPEqSolver(int n_vars=NVars, int n_const=NEq) : n(n_vars),m(n_const)
-        {
+    static constexpr int NWork = 
+           ((NVars == -1) || (NEq == -1)) ? -1 : (NVars+NEq);
+    Eigen::Matrix<Scalar,NWork,NWork> Z;
+    Eigen::Matrix<Scalar,NWork,1> C;
 
+public:
+    QPEqSolver(int n_vars=NVars, int n_const=NEq) : n(n_vars),m(n_const),
+            Z(n+m,n+m), C(n+m,1)
+        {
+            Z.block(n,n,m,m).setZero();
         }
     void solve(Eigen::Matrix<Scalar,NVars,NVars> &Q, Eigen::Matrix<Scalar,NVars,1> &c, 
               Eigen::Matrix<Scalar,NEq,NVars> &A, Eigen::Matrix<Scalar,NEq,1> &b,
               Eigen::Matrix<Scalar,NVars,1> &x)
     {
-        // TODO: Can this be done without explicitly
-        //  constructing 'Z' ?
-        // 2x2 block matrix inversion doesn't work because
-        //  of the lower right block being singular.
-        Eigen::Matrix<Scalar,-1,-1> Z(m+n,m+n);
         Z.block(0,0,n,n) = Q;
         Z.block(0,n,n,m) = A.adjoint();
         Z.block(n,0,m,n) = A;
-        Z.block(n,n,m,m).setZero();
 
-        Eigen::Matrix<Scalar,-1,1> C(m+n);
         C.head(n) = -c;
         C.tail(m) = b;
 
@@ -47,7 +60,10 @@ public:
     }
 };
 
-template<typename Scalar, int NVars, int NIneq>
+/*
+ * Solver for inequality constrained problems
+ */
+template<typename Scalar, int NVars=-1, int NIneq=-1>
 class QPIneqSolver
 {
     typedef Eigen::Matrix<Scalar,NVars,1> PVec;
@@ -58,7 +74,7 @@ private:
     const int n;
     const int m;
 
-    const Scalar eps = 1E-9;
+    // static constexpr Scalar eps = _private::defaultTolerance<Scalar>::tol;
     const Scalar eta = 0.95;
 
     // Work buffers
@@ -150,13 +166,74 @@ public:
             mu = s.dot(z)*ms;
 
             // Convergence test
-            if ( (mu < eps) && 
-                 (rd.norm() < eps) && 
-                 (rs.norm() < eps) )
+            if ( (mu < defTol<Scalar>()) && 
+                 (rd.norm() < defTol<Scalar>()) && 
+                 (rs.norm() < defTol<Scalar>()) )
             {
                 break;
             }
         }
+    }
+};
+
+/**
+ * General QPs with both equality and inequality constraints.
+ *  This doesn't currently work.
+ */
+template<typename Scalar, int NVars=-1, int NEq=-1, int NIneq=-1>
+class QPGenSolver
+{
+    // Static size for work matrix.
+    static constexpr int NWork = 
+        ((NVars == -1) || (NEq == -1) || (NIneq==-1)) ? -1 : (NVars+NEq+2*NIneq);
+    typedef Eigen::Matrix<Scalar,NVars,1> PVec;
+    typedef Eigen::Matrix<Scalar,NIneq,1> DVec; // Dual (i.e., Lagrange multiplier) vector
+    typedef Eigen::Matrix<Scalar,NEq,1> EVec;   // Dual (i.e., Lagrange multiplier) vector for equality
+
+    typedef Eigen::Matrix<Scalar,NWork,NWork> WorkBuf;
+private:
+
+    // Problem size
+    const int n;
+    const int mi;
+    const int me;
+
+    const Scalar eps = 1E-9;
+    const Scalar eta = 0.95;
+
+    // Work buffers
+    DVec s;
+    DVec z;
+    EVec y; 
+
+    PVec rd;
+    DVec rp;
+    DVec rs;
+    EVec ry;
+
+    PVec dx;
+    DVec ds;
+    DVec dz;
+    EVec dy;
+
+    WorkBuf augSystem;
+public:
+    QPGenSolver(int n_vars=NVars, int n_const_eq=NEq, int n_const_ineq=NIneq) 
+        : n(n_vars),mi(n_const_ineq),me(n_const_eq), 
+          s(mi), z(mi), y(me), rd(n), rp(mi), rs(mi), 
+          ry(me), dx(n), ds(mi), dz(mi), dy(me),
+          augSystem(2*mi+me+n,2*mi+me+n)
+        {
+        }
+
+    ~QPGenSolver() {}
+
+    void solve(Eigen::Matrix<Scalar,NVars,NVars> &Q, Eigen::Matrix<Scalar,NVars,1> &c, 
+              Eigen::Matrix<Scalar,NIneq,NVars> &A, Eigen::Matrix<Scalar,NIneq,1> &b,
+              Eigen::Matrix<Scalar,NEq,NVars> &E, Eigen::Matrix<Scalar,NEq,1> &f,
+              Eigen::Matrix<Scalar,NVars,1> &x)
+    {
+       
     }
 };
 
