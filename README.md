@@ -13,3 +13,4 @@ Things missing/TODO:
 *   Specialized code for box constraints (e.g., $l_i \le x_i \le u_i$)
 *   Non-convergence/failure testing (currently assumes problem is feasible and convex)
 *   (Stretch goal) Quadradically constrained quadradic programs (QCQPs)
+*   Currently, the <float> template specialization seems to not converge.  This could just be a sign that the algorithm requires double precision, but this should be investigated.
