@@ -38,7 +38,7 @@ void quadprog(Eigen::Matrix<Scalar,NVars,NVars> &Q, Eigen::Matrix<Scalar,NVars,1
 
 In this notation, quadprog solves the following inequality constrained quadradic program:
 
-![Quadprog equation](https://latex.codecogs.com/png.latex?%5CLARGE%20%5Cmin_%7Bx%7D%20x%5EtQx%20&plus;%20b%5Etx%20%5C%5C%20%5Ctext%7BSuch%20that%7D%7E%20Ax%20%5Cpreceq%20c)
+![Quadprog equation image](https://latex.codecogs.com/png.latex?%5Cdpi%7B150%7D%20%5Cmin_x%7E%20%5Cfrac%7B1%7D%7B2%7Dx%5ETQx%20&plus;%20c%5ETx%20%5C%5C%20%5Ctext%7BSuch%20that%7E%7D%20Ax%20%5Cprec%20b)
 
 The template parameters `NVars` and `NIneq` can be set at compile time to allow the compiler to generate faster code for solving small problems; if set to -1 (or `Eigen::Dynamic`), arbitrary (real) matrices are allowed (although the user is responsible for assuring compatible dimensions).
 
