@@ -70,10 +70,6 @@ class QPIneqSolver
     typedef Eigen::Matrix<Scalar,NIneq,1> DVec; // Dual (i.e., Lagrange multiplier) vector
     typedef Eigen::Matrix<Scalar,NVars,NVars> PMat;
 private:
-    // Problem size
-    const int n;
-    const int m;
-
     // Work buffers
     DVec s;
     DVec z;
@@ -86,6 +82,11 @@ private:
     DVec ds;
     DVec dz;
 
+    PVec x;
+
+    // Problem size
+    const int n;
+    const int m;
 public:
     // Parameters
     Scalar tolerance;
@@ -95,13 +96,16 @@ public:
         {
             tolerance = defTol<Scalar>();
             max_iters = 250;
+            if (NVars == -1) {
+                x.resize(n_vars);
+            }
         }
 
     ~QPIneqSolver() {}
 
     void solve(Eigen::Matrix<Scalar,NVars,NVars> &Q, Eigen::Matrix<Scalar,NVars,1> &c, 
               Eigen::Matrix<Scalar,NIneq,NVars> &A, Eigen::Matrix<Scalar,NIneq,1> &b,
-              Eigen::Matrix<Scalar,NVars,1> &x)
+              Eigen::Matrix<Scalar,NVars,1> &x_out)
     {
         const Scalar eta(0.95);
         const Scalar eps = tolerance;
@@ -177,6 +181,7 @@ public:
                 break;
             }
         }
+        x_out = x;
     }
     public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

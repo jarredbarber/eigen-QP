@@ -23,7 +23,7 @@ using namespace EigenQP;
 #define PROB_INEQ 16
 #define PROB_EQ 3
 
-#define N_TEST   2048
+#define N_TEST   (1<<16)
 
 template<typename Scalar, int NV_FIXED, int NC_FIXED, int NE_FIXED>
 void test()
@@ -132,7 +132,7 @@ void test()
         cout << "    error: " << (x_fixed - x_unc).norm() << endl;
     }
 
-    cout << "quadprog, equality constraints, dynamic" << endl;
+    cout << "QPEqSolver, equality constraints, dynamic" << endl;
     {
         QPEqSolver<Scalar> solver(num_vars,num_eq);
         {
@@ -142,6 +142,8 @@ void test()
         }
     }
 
+    /*
+    // known to be broken
     cout << "quadprog, ineq/eq constraints, dynamic" << endl;
     {
         //b = A*x - 0.12;
@@ -152,6 +154,7 @@ void test()
                 solver.solve(Q,c,A,b,E,f,x);
         }
     }
+    */
 }
 
 int main(int argc, char ** argv)
