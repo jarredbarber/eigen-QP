@@ -1,4 +1,4 @@
-# Eigen-QP: Fast fixed-size quadradic programming#
+# Eigen-QP: Fast fixed-size quadradic programming
 
 A C++ template library for solving small quadradic programs very quickly.  Based on the [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) Linear algebra template library.  The primary design goal is to be small, fast, and simple.
 
