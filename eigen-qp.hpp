@@ -87,8 +87,14 @@ private:
     DVec dz;
 
 public:
+    // Parameters
+    Scalar tolerance;
+    int    max_iters;
+
     QPIneqSolver(int n_vars=NVars, int n_const=NIneq) : n(n_vars),m(n_const), s(m), z(m), rd(n), rp(m), rs(m), dx(n), ds(m), dz(m)
         {
+            tolerance = defTol<Scalar>();
+            max_iters = 250;
         }
 
     ~QPIneqSolver() {}
@@ -97,8 +103,8 @@ public:
               Eigen::Matrix<Scalar,NIneq,NVars> &A, Eigen::Matrix<Scalar,NIneq,1> &b,
               Eigen::Matrix<Scalar,NVars,1> &x)
     {
-        const Scalar eta = 0.95;
-        const Scalar eps = defTol<Scalar>();
+        const Scalar eta(0.95);
+        const Scalar eps = tolerance;
 
         // Initialization
         s.setOnes();
@@ -110,13 +116,11 @@ public:
         rp = s + b;
         rs = (s.array()*z.array());
 
-        const Scalar ms = 1/(Scalar)m;
+        const Scalar ms = Scalar(1.0)/(Scalar)m;
         Scalar mu = (Scalar)n*ms; // Initial mu based on knowing that s,z are ones.
         Scalar alpha;
 
-        int iter;
-
-        for (iter=0; iter < 250; iter++)
+        for (int iter=0; iter < max_iters; iter++)
         {
             // Precompute decompositions for this iteration
             Eigen::LLT<PMat> Gbar = (Q + A.adjoint()*((z.array()/s.array()).matrix().asDiagonal())*A).llt();
