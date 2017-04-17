@@ -20,7 +20,7 @@ template<typename t> t defTol();
 template<>
     inline double defTol<double>() { return 1E-9; }
 template<>
-    inline float defTol<float>()   { return 1E-5f; }
+    inline float defTol<float>()   { return 1E-4f; }
 
 /*
  * Solver for equality constrained problems.
