@@ -182,6 +182,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+#if 0
 /**
  * General QPs with both equality and inequality constraints.
  *  This doesn't currently work.
@@ -239,7 +240,7 @@ public:
        
     }
 };
-
+#endif
 
 template<typename Scalar, int NVars, int NIneq>
 void quadprog(Eigen::Matrix<Scalar,NVars,NVars> &Q, Eigen::Matrix<Scalar,NVars,1> &c, 
