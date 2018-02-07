@@ -123,6 +123,10 @@ public:
             if (NVars == -1) {
                 x.resize(n_vars);
             }
+            if (NIneq == -1) {
+                s.resize(n_const);
+                z.resize(n_const);
+            }
         }
 
     ~QPIneqSolver() {}
