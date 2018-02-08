@@ -28,7 +28,7 @@
 #ifndef _EIGEN_QP_H_
 #define _EIGEN_QP_H_
 
-#include <Eigen/Core>
+#include <Eigen/Dense>
 
 /**
  * Solves quadradic programs with equality constraints
