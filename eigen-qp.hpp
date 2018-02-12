@@ -94,6 +94,10 @@ class QPIneqSolver
     typedef Eigen::Matrix<Scalar,NIneq,1> DVec; // Dual (i.e., Lagrange multiplier) vector
     typedef Eigen::Matrix<Scalar,NVars,NVars> PMat;
 private:
+    // Problem size
+    const int n;
+    const int m;
+    
     // Work buffers
     DVec s;
     DVec z;
@@ -107,10 +111,7 @@ private:
     DVec dz;
 
     PVec x;
-
-    // Problem size
-    const int n;
-    const int m;
+    
 public:
     // Parameters
     Scalar tolerance;
