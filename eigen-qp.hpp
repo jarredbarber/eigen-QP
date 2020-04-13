@@ -150,7 +150,7 @@ public:
         rs = (s.array()*z.array());
 
         const Scalar ms = Scalar(1.0)/(Scalar)m;
-        Scalar mu = (Scalar)n*ms; // Initial mu based on knowing that s,z are ones.
+        Scalar mu = (Scalar)n/((Scalar)m); // Initial mu based on knowing that s,z are ones.
         Scalar alpha;
 
         for (int iter=0; iter < max_iters; iter++)
@@ -165,11 +165,11 @@ public:
                     auto tmp = (rs.array() - z.array()*rp.array())/s.array();
                     dx = -Gbar.solve(rd + A.adjoint()*tmp.matrix());
                     ds = A*dx - rp;
-                    dz.array() = -(rs.array() - z.array()*ds.array())/s.array();
+                    dz.array() = -(rs.array() + z.array()*ds.array())/s.array();
                 }
 
                 // Compute alph,mu 
-                alpha = 1.0;
+                alpha = Scalar(1.0);
                 for (int jj=0; jj < m; jj++)
                 {
                     Scalar a = -z(jj)/dz(jj);
@@ -178,12 +178,14 @@ public:
                     alpha    = (a < alpha) && (a > 0) ? a : alpha;
                 }
 
+
                 if (ii)
                     break; // Don't need to compute any more
 
                 // Centering    
-                Scalar mu_aff = (s + alpha*ds).dot(z+alpha*dz)*ms;
-                Scalar sigma  = (mu_aff/mu); sigma *= sigma*sigma;
+                Scalar mu_aff = (s + alpha*ds).dot(z + alpha*dz)*ms;
+                Scalar sigma = mu_aff / mu;
+                sigma *= sigma*sigma;
 
                 // Corrector residual
                 rs.array() += ds.array()*dz.array() - sigma*mu;
@@ -196,8 +198,8 @@ public:
             z += alpha*dz;
 
             // Update residuals
-            rd = Q*x + c - A.adjoint()*z;
-            rp = s - A*x + b;
+            rd = Q*x + c - A*z;
+            rp = s + A.adjoint()*x - b;
             rs = (s.array()*z.array());
 
             mu = s.dot(z)*ms;
