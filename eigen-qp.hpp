@@ -86,6 +86,16 @@ public:
 
 /*
  * Solver for inequality constrained problems
+ *
+ * This uses a predictor-corrector interior point method from
+ * "Interior-Point Algorithms for Quadratic Programming" by Thomas Kruth
+ *
+ * Some small notation changes from Kruth => this code:
+ *
+ * G => Q
+ * g => c
+ * A => A.adjoint() (i.e., the constraint matrix is transposed)
+ * lambda => z
  */
 template<typename Scalar, int NVars=-1, int NIneq=-1>
 class QPIneqSolver
